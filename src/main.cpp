@@ -1,13 +1,9 @@
 //todo: 
-// - button to trigger wifi manager
-// - oled to indicate various problems
 // - dipswitches to control if pushover/alexa is used?
 
 
 #include <Arduino.h>
-// #include <WiFi.h>
 #include <HTTPClient.h>
-#include <keys.h>
 #include <ArduinoJson.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -16,24 +12,20 @@
 #include <Adafruit_SSD1306.h>
 #include <WiFiManager.h>
 #include <Preferences.h> 
+#include <constants.h>
+
 
 // Temperature sensor setup
-#define ONE_WIRE_BUS 26  // GPIO pin for DS18B20 data wire (GPIO 26)
-#define TEMPERATURE_PRECISION 12
-
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 // OLED display setup
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET -1  // Reset pin not used
-#define SCREEN_ADDRESS 0x3C  // Common I2C address for SSD1306
-
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-byte RESET_BUTTON_PIN = 32; // GPIO pin for the button
-
+// Temporary view system
+unsigned long tempViewStartTime = 0;
+bool tempViewActive = false;
+void (*tempViewCallback)() = nullptr;
 
 Preferences prefs;
 
@@ -114,6 +106,10 @@ String urlEncode(const String& str);
 float readTemperature();
 void updateDisplay(float temperature);
 void processParameters();
+void wifiNotConnectedDisplay();
+void pushoverFailureDisplay();
+void alexaFailureDisplay();
+void launchPortalDisplay();
 
 void setup() {
   
@@ -158,6 +154,12 @@ void setup() {
       Serial.println("\n❌ Failed to connect with saved credentials");
     }
   } else {
+        // Start temporary view
+    tempViewCallback = wifiNotConnectedDisplay;
+    tempViewStartTime = millis();
+    tempViewActive = true;
+
+    tempViewCallback(); 
     Serial.println("No saved WiFi credentials. Press button to configure.");
   }
 
@@ -209,8 +211,12 @@ void loop() {
     
     Serial.println("Resetting settings");
     wifiManager.resetSettings();
- 
 
+    // Start temporary view
+    tempViewCallback = wifiNotConnectedDisplay;
+    tempViewStartTime = millis();
+    tempViewActive = true;
+    tempViewCallback();
   
 
   if (!wifiManager.startConfigPortal("BoilBuddy-Setup")) {
@@ -251,7 +257,13 @@ void loop() {
     // Serial.println("°C");
     
     // Update OLED display
+    if (tempViewActive && millis() - tempViewStartTime > TEMP_DISPLAY_TIME) {
+    tempViewActive = false;
+    updateDisplay(tempC);  // restore SD matrix view
+}else if (!tempViewActive) {
     updateDisplay(tempC);
+}
+//do note the inelegance here.
     
     // Check for boiling
     if (tempC >= boilingThreshold) {
@@ -304,6 +316,15 @@ void sendPushover(const char* title, const char* message) {
       Serial.print("Error sending message: ");
       Serial.println(http.errorToString(httpResponseCode));
     }
+    if(httpResponseCode!=200){
+    Serial.println("Pushover error detected, showing on OLED");
+    tempViewCallback = pushoverFailureDisplay;
+    tempViewStartTime = millis();
+    tempViewActive = true;
+    tempViewCallback(); 
+   
+    }
+
 
     http.end();
   } else {
@@ -328,6 +349,12 @@ void triggerMonkey(const String& message) {
     Serial.print("VoiceMonkey Response code: ");
     Serial.println(code);
     Serial.println(http.getString());
+    if(code!=200){
+      tempViewCallback = alexaFailureDisplay;
+      tempViewStartTime = millis();
+      tempViewActive = true;
+      tempViewCallback(); 
+    }
     http.end();
   } else {
     Serial.println("WiFi not connected!");
@@ -419,6 +446,58 @@ void updateDisplay(float temperature) {
   
   display.display();
 }
+
+void wifiNotConnectedDisplay() {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("WiFi not connected!");
+  display.println("Press button to");
+  display.println("configure WiFi");
+  display.display();
+}
+
+void pushoverFailureDisplay(){
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("Pushover Error!");
+  display.println("Check keys:");
+  display.print("Pushover Key: ");
+  display.println(pushover_key_str);
+  //only print the first five characters of the api key for security
+  display.print("Pushover API Key: ");
+  display.print(pushover_api_key_str.substring(0,5));
+  display.println("...");
+  display.display();
+}
+
+void alexaFailureDisplay(){
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("VoiceMonkey Error!");
+  display.println("Check keys:");
+  display.print("VM Group: ");
+  display.println(vm_group_str);
+  //only print the first five characters of the api key for security
+  display.print("VM Key: ");
+  display.print(vm_key_str.substring(0,5));
+  display.println("...");
+  display.display();
+}
+
+void launchPortalDisplay(){
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.println("Launching");
+    display.println("Config Portal");
+    display.println("@ IP");
+    display.println(WiFi.softAPIP());
+    display.display();
+}
+
 
 void processParameters(){  // Save WiFiManager parameters to preferences
   const char* pushoverKey = pushoverParam.getValue();
