@@ -85,7 +85,14 @@ struct ButtonHelper{
 };
 
 ButtonHelper wifiManagerButton(RESET_BUTTON_PIN); // Properly initialize with pin 32
-
+WiFiManager wifiManager;
+ 
+  // Custom fields
+WiFiManagerParameter pushoverParam("pushover", "Pushover User Key", "", 32);
+WiFiManagerParameter pushoverApiParam("pushover_api", "Pushover API Key", "", 32);
+WiFiManagerParameter tempParam("boiltemp", "Boiling Temp (°C)", "100.0", 6); // default 100°C
+WiFiManagerParameter voiceMonkeyGroupParam("vm_group", "VoiceMonkey Group Name", "", 64);
+WiFiManagerParameter voiceMonkeyKeyParam("vm_key", "VoiceMonkey API Key", "", 128);
 
 //constants & variables
 float boilingThreshold = 98.5; // Will be loaded from preferences
@@ -97,6 +104,8 @@ float lastCheckTime = 0;
 // Pushover keys - will be loaded from preferences or environment
 String pushover_key_str;
 String pushover_api_key_str;
+String vm_group_str;
+String vm_key_str;
 
 //function prototypes
 void sendPushover(const char* title, const char* message);
@@ -104,8 +113,7 @@ void triggerMonkey(const String& message);
 String urlEncode(const String& str);
 float readTemperature();
 void updateDisplay(float temperature);
-
-
+void processParameters();
 
 void setup() {
   
@@ -119,16 +127,39 @@ void setup() {
   // Initialize preferences
   prefs.begin(WORKING_NAME, false);
 
-  //start wifi manager
-  
+  wifiManager.addParameter(&pushoverParam);
+  wifiManager.addParameter(&pushoverApiParam);
+  wifiManager.addParameter(&tempParam);
+  wifiManager.addParameter(&voiceMonkeyGroupParam);
+  wifiManager.addParameter(&voiceMonkeyKeyParam);
   
   // UNCOMMENT NEXT LINE TO CLEAR ALL SAVED WIFI CREDENTIALS
   // wifiManager.resetSettings();
+  processParameters(); // Load any previously saved parameters
   
-  
-
-
-
+  // Try to connect to WiFi using saved credentials (if they exist)
+  if (wifiManager.getWiFiIsSaved()) {
+    Serial.println("Found saved WiFi credentials, connecting...");
+    WiFi.begin(); // Uses saved credentials automatically
+    
+    // Wait for connection with timeout
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      delay(500);
+      Serial.print(".");
+      attempts++;
+    }
+    
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.printf("\n✅ Connected to Wi-Fi: %s\n", WiFi.SSID().c_str());
+      Serial.print("IP address: ");
+      Serial.println(WiFi.localIP());
+    } else {
+      Serial.println("\n❌ Failed to connect with saved credentials");
+    }
+  } else {
+    Serial.println("No saved WiFi credentials. Press button to configure.");
+  }
 
   // Initialize OLED display
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
@@ -175,18 +206,12 @@ void setup() {
 
 void loop() {
   if(wifiManagerButton.justPressed()){
-    WiFiManager wifiManager;
+    
     Serial.println("Resetting settings");
     wifiManager.resetSettings();
  
 
-    // Custom fields
-  WiFiManagerParameter pushoverParam("pushover", "Pushover User Key", "", 32);
-  WiFiManagerParameter pushoverApiParam("pushover_api", "Pushover API Key", "", 32);
-  WiFiManagerParameter tempParam("boiltemp", "Boiling Temp (°C)", "100.0", 6); // default 100°C
-  wifiManager.addParameter(&pushoverParam);
-  wifiManager.addParameter(&pushoverApiParam);
-  wifiManager.addParameter(&tempParam);
+  
 
   if (!wifiManager.startConfigPortal("BoilBuddy-Setup")) {
       Serial.println("failed to connect and hit timeout");
@@ -197,36 +222,7 @@ void loop() {
     }
     Serial.println("Exited WiFiManager");
 
-  // Save WiFiManager parameters to preferences
-  const char* pushoverKey = pushoverParam.getValue();
-  if (strlen(pushoverKey) > 0) {
-    prefs.putString("pushover", pushoverKey);
-    Serial.printf("✅ Saved Pushover key: %s\n", pushoverKey);
-  }
-  
-  const char* pushoverApiKey = pushoverApiParam.getValue();
-  if (strlen(pushoverApiKey) > 0) {
-    prefs.putString("pushover_api", pushoverApiKey);
-    Serial.printf("✅ Saved Pushover API key: %s\n", pushoverApiKey);
-  }
-  
-  // Load keys from preferences
-  pushover_key_str = prefs.getString("pushover", "not_set");
-  pushover_api_key_str = prefs.getString("pushover_api", "not_set");
-  
-  Serial.printf("📱 Loaded Pushover User Key: %s\n", pushover_key_str.c_str());
-  Serial.printf("📱 Loaded Pushover API Key: %s\n", pushover_api_key_str.c_str());
-
-  const char* boilTempStr = tempParam.getValue();
-  if (strlen(boilTempStr) > 0) {
-    float boilTemp = atof(boilTempStr);
-    prefs.putFloat("boiling_temp", boilTemp);
-    Serial.printf("✅ Saved boiling temperature: %.1f °C\n", boilTemp);
-  }
-  
-  // Load boiling threshold from preferences (read once)
-  boilingThreshold = prefs.getFloat("boiling_temp", 100.0);
-  Serial.printf("🎯 Using boiling threshold: %.1f °C\n", boilingThreshold);
+    processParameters();
 
   Serial.printf("✅ Connected to Wi-Fi: %s\n", WiFi.SSID().c_str());
   Serial.print("IP address: ");
@@ -250,9 +246,9 @@ void loop() {
   float tempC = readTemperature();
   
   if (tempC != DEVICE_DISCONNECTED_C) {
-    Serial.print("Temperature: ");
-    Serial.print(tempC);
-    Serial.println("°C");
+    // Serial.print("Temperature: ");
+    // Serial.print(tempC);
+    // Serial.println("°C");
     
     // Update OLED display
     updateDisplay(tempC);
@@ -283,11 +279,7 @@ void loop() {
 
 void sendPushover(const char* title, const char* message) {
   if (WiFi.status() == WL_CONNECTED) {
-    // Check if we have valid keys
-    if (pushover_key_str == "not_set" || pushover_api_key_str == "not_set") {
-      Serial.println("❌ Pushover keys not configured. Skipping notification.");
-      return;
-    }
+   
     
     HTTPClient http;
     http.begin("https://api.pushover.net/1/messages.json");
@@ -330,7 +322,7 @@ void triggerMonkey(const String& message) {
     Serial.printf("Encoded message: %s\n", encodedMessage.c_str());
     
     // Using the new VoiceMonkey API v2 format
-    String url = String("https://api-v2.voicemonkey.io/announcement?token=") + VM_KEY + "&device=" + VOICE_MONKEY_GROUP + "&text=" + encodedMessage;
+    String url = String("https://api-v2.voicemonkey.io/announcement?token=") +vm_key_str + "&device=" + vm_group_str + "&text=" + encodedMessage;
     http.begin(url);
     int code = http.GET();
     Serial.print("VoiceMonkey Response code: ");
@@ -426,4 +418,52 @@ void updateDisplay(float temperature) {
   display.println("C");
   
   display.display();
+}
+
+void processParameters(){  // Save WiFiManager parameters to preferences
+  const char* pushoverKey = pushoverParam.getValue();
+  if (strlen(pushoverKey) > 0) {
+    prefs.putString("pushover", pushoverKey);
+    Serial.printf("✅ Saved Pushover key: %s\n", pushoverKey);
+  }
+  
+  const char* pushoverApiKey = pushoverApiParam.getValue();
+  if (strlen(pushoverApiKey) > 0) {
+    prefs.putString("pushover_api", pushoverApiKey);
+    Serial.printf("✅ Saved Pushover API key: %s\n", pushoverApiKey);
+  }
+
+  const char* vmGroup = voiceMonkeyGroupParam.getValue();
+  if (strlen(vmGroup) > 0) {
+    prefs.putString("vm_group", vmGroup);
+    Serial.printf("✅ Saved VoiceMonkey Group: %s\n", vmGroup);
+  }
+
+  const char* vmKey = voiceMonkeyKeyParam.getValue();
+  if (strlen(vmKey) > 0) {
+    prefs.putString("vm_key", vmKey);
+    Serial.printf("✅ Saved VoiceMonkey Key: %s\n", vmKey);
+  }
+  
+  // Load keys from preferences
+  pushover_key_str = prefs.getString("pushover", "not_set");
+  pushover_api_key_str = prefs.getString("pushover_api", "not_set");
+  vm_group_str = prefs.getString("vm_group", "not_set");
+  vm_key_str = prefs.getString("vm_key", "not_set");
+  
+  Serial.printf("📱 Loaded Pushover User Key: %s\n", pushover_key_str.c_str());
+  Serial.printf("📱 Loaded Pushover API Key: %s\n", pushover_api_key_str.c_str());
+  Serial.printf("🎤 Loaded VoiceMonkey Group: %s\n", vm_group_str.c_str());
+  Serial.printf("🎤 Loaded VoiceMonkey Key: %s\n", vm_key_str.c_str());
+
+  const char* boilTempStr = tempParam.getValue();
+  if (strlen(boilTempStr) > 0) {
+    float boilTemp = atof(boilTempStr);
+    prefs.putFloat("boiling_temp", boilTemp);
+    Serial.printf("✅ Saved boiling temperature: %.1f °C\n", boilTemp);
+  }
+  
+  // Load boiling threshold from preferences (read once)
+  boilingThreshold = prefs.getFloat("boiling_temp", 100.0);
+  Serial.printf("🎯 Using boiling threshold: %.1f °C\n", boilingThreshold);
 }
