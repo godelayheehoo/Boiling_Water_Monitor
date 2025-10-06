@@ -5,3 +5,4 @@
 #define VOICE_MONKEY_GROUP "monkeytown"
 //I think voice monkey group has to be only lowercase
 #define VM_KEY VOICE_MONKEY_KEY
+#define WORKING_NAME "BoilBuddy"
