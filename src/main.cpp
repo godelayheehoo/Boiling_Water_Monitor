@@ -1,5 +1,11 @@
 //todo: 
 // - dipswitches to control if pushover/alexa is used?
+// - it seems like if the temp probes aren't connected, wifi keeps resetting??? does that make sense?
+// need to fix the button so it doesn't read as pressed on boot. This could be done by having the initializer just
+//do digital read to set the initial state, or it could have us fix the initial state, or we could have a flag to ignore the first read?
+//not sure that last one works actually.
+//could just write the debounce logic myself and have it work the way I've had it in the past.
+// make the screen update to reflect when we *are* in the setup state. 
 
 
 #include <Arduino.h>
@@ -13,6 +19,8 @@
 #include <WiFiManager.h>
 #include <Preferences.h> 
 #include <constants.h>
+
+
 
 
 // Temperature sensor setup
@@ -31,6 +39,7 @@ Preferences prefs;
 
 struct ButtonHelper{
   byte pinNumber;
+  bool initialState = LOW;
   bool lastState = LOW;
   unsigned long lastDebounceTime = 0;
   const unsigned long debounceDelay = 100; // milliseconds
@@ -47,6 +56,9 @@ struct ButtonHelper{
   
   void begin(){
     pinMode(pinNumber, INPUT_PULLUP);
+    delay(10); // Allow pin to stabilize
+    initialState = digitalRead(pinNumber);
+    lastState = initialState;
   }
 
   bool justPressed() {
@@ -60,10 +72,10 @@ struct ButtonHelper{
   // If the input has been stable for > debounceDelay
   if ((millis() - lastDebounceTime) > debounceDelay) {
     // We only update the stored state *after* debounce period
-    static bool stableState = LOW; // assume unpressed for INPUT_PULLUP
+    static bool stableState = initialState; // assume unpressed for INPUT_PULLUP
     if (reading != stableState) {
       stableState = reading;
-      if (stableState == HIGH) {  // button pressed (for INPUT_PULLUP)
+      if (stableState == !initialState) {  // button pressed (for INPUT_PULLUP)
         Serial.println("Button press confirmed!");
         lastState = reading;
         return true;
@@ -119,9 +131,24 @@ void setup() {
   Serial.println(digitalRead(RESET_BUTTON_PIN)==LOW);
   //setup button
   wifiManagerButton.begin();
+  Wire.begin(SDA_PIN, SCL_PIN); // Initialize I2C with specified SDA and SCL pins
 
-  // Initialize preferences
-  prefs.begin(WORKING_NAME, false);
+  // Initialize OLED display
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println("SSD1306 allocation failed");
+  } else {
+    Serial.println("OLED display initialized");
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println("Boiling Monitor");
+    display.println("Initializing...");
+    display.display();
+  }
+
+    // Initialize preferences
+  prefs.begin(WORKING_NAME, false);  
 
   wifiManager.addParameter(&pushoverParam);
   wifiManager.addParameter(&pushoverApiParam);
@@ -163,19 +190,6 @@ void setup() {
     Serial.println("No saved WiFi credentials. Press button to configure.");
   }
 
-  // Initialize OLED display
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println("SSD1306 allocation failed");
-  } else {
-    Serial.println("OLED display initialized");
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 0);
-    display.println("Boiling Monitor");
-    display.println("Initializing...");
-    display.display();
-  }
   
   // Initialize temperature sensor
   sensors.begin();
@@ -213,7 +227,7 @@ void loop() {
     wifiManager.resetSettings();
 
     // Start temporary view
-    tempViewCallback = wifiNotConnectedDisplay;
+    tempViewCallback = launchPortalDisplay;
     tempViewStartTime = millis();
     tempViewActive = true;
     tempViewCallback();
@@ -495,6 +509,19 @@ void launchPortalDisplay(){
     display.println("Config Portal");
     display.println("@ IP");
     display.println(WiFi.softAPIP());
+    display.display();
+}
+
+void noProbeDisplay(){
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.println("No Temp Probe!");
+    display.println("Check wiring:");
+    display.println("- Data wire to P26");
+    display.println("- VDD to 3.3V");
+    display.println("- GND to GND");
+    display.println("- 4.7kΩ resistor");
     display.display();
 }
 

@@ -8,9 +8,11 @@
 #define TEMPERATURE_PRECISION 12
 
 //OLED constants
+#define SDA_PIN 33
+#define SCL_PIN 32
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1  // Reset pin not used
 #define SCREEN_ADDRESS 0x3C  // Common I2C address for SSD1306
 
-#define RESET_BUTTON_PIN 32 // GPIO pin for the button
+#define RESET_BUTTON_PIN 12  // GPIO pin for the button
