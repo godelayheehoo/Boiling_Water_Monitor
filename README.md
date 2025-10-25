@@ -83,7 +83,7 @@ You'll see a form with several fields. Fill them out:
 #### Required Settings:
 1. **WiFi SSID**: Select your home WiFi network from the dropdown, or type the exact name if you don't see it
 2. **WiFi Password**: Type your home WiFi password (be careful with capitals and special characters)
-3. **Boiling Temp (°C)**: Leave as "100.0" unless you live at high altitude (then use 98 or 99)
+3. **Boiling Temp (°C)**: Leave as "100.0" unless you live at high altitude (then use 98 or 99). If you want more accurate results, you can google "boiling temperature calculator" and put in your altitude and pressure.
 
 #### Optional Settings (you can leave these blank if you want):
 4. **Pushover User Key**: If you set up Pushover, paste your User Key here
@@ -179,6 +179,8 @@ If you're still having trouble, write down exactly what's happening and what the
 
 # Dev Notes
 
+You should ignore this, it's mostly written by chatgpt from my source code and is partially inaccurate. 
+
 ## Features
 
 - **Real-time Temperature Monitoring**: Uses DS18B20 digital temperature sensor for accurate readings
@@ -187,7 +189,7 @@ If you're still having trouble, write down exactly what's happening and what the
 - **Dual Notifications**: 
   - Pushover mobile notifications
   - Alexa announcements via VoiceMonkey API
-- **Configurable Threshold**: Set custom boiling temperature (default: 98.5°C)
+- **Configurable Threshold**: Set custom boiling temperature (default: 100.0°C)
 - **Stable Detection**: Requires temperature to be stable for 8 seconds before triggering
 - **Button Reconfiguration**: Press button to restart WiFi configuration
 
