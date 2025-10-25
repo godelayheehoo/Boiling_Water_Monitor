@@ -1,6 +1,183 @@
+README TODO:
+
+
 # BoilBuddy - Smart Boiling Water Monitor
 
 An ESP32-based IoT device that monitors water temperature and sends notifications when water reaches boiling point. Features a local OLED display, WiFi configuration portal, and dual notification systems through Pushover and Alexa (via VoiceMonkey).
+
+# Setup Guide for Users
+
+## What You'll Need Before Starting
+- Your BoilBuddy device (already built and programmed)
+- A smartphone, tablet, or computer with WiFi
+- Your home WiFi network name and password
+- About 10-15 minutes
+
+## Optional: Set Up Phone Notifications (Pushover)
+If you want to receive notifications on your phone when water is boiling:
+
+1. **Download the Pushover app** on your phone from the App Store or Google Play Store. The *app* has a one time cost.  If you're one of my beta testers, feel free to let me know and I'd be happy to send you the necessary funds.
+2. **Create a free account** at [pushover.net](https://pushover.net) using the same email
+3. **Write down your User Key**: 
+   - Log into pushover.net on your computer
+   - Your User Key is displayed on the main page (looks like: `u2j3k4l5m6n7o8p9`)
+   - Write this down - you'll need it later
+4. **Create an application**:
+   - Click "Create an Application/API Token" 
+   - Give it a name like "BoilBuddy"
+   - Write down the API Token (looks like: `a1b2c3d4e5f6g7h8`)
+
+## Optional: Set Up Alexa Announcements (VoiceMonkey)
+If you want Alexa to announce when water is boiling:
+
+1. **Create a free account** at [voicemonkey.io](https://voicemonkey.io)
+2. **Create a "Monkey"** (this is like a virtual device):
+   - Click "Create New Monkey"
+   - Give it a name like "BoilBuddy" 
+   - Write down the exact name you used
+3. **Get your API Key**:
+   - Look for "API Key" on your dashboard
+   - Write it down (looks like a long string of letters and numbers)
+4. **Link to your Alexa**:
+   - Follow the instructions on VoiceMonkey to connect it to your Amazon account
+   - Make sure your Alexa device can see the new "monkey"
+
+## First Time Setup - Step by Step
+
+### Step 1: Power On Your BoilBuddy
+1. **Plug in your BoilBuddy** to a USB power source (phone charger works fine)
+2. **Look at the small screen** - it should show "Boiling Monitor" and "Initializing..."
+3. **Wait about 10 seconds** for it to fully start up
+
+### Step 2: Enter Setup Mode
+Since this is the first time, BoilBuddy doesn't know your WiFi password yet.
+
+1. **Find the button** on your BoilBuddy device
+2. **Press and hold the button** for about 2 seconds, then let go
+3. **Look at the screen** - it should show something about "Setup Mode" or "Configuration"
+4. **Wait about 30 seconds** - BoilBuddy is creating its own WiFi network for setup
+
+### Step 3: Connect Your Phone/Computer to BoilBuddy
+1. **On your phone or computer**, go to WiFi settings
+2. **Look for a network called "BoilBuddy-Setup"** in the list of available networks
+3. **Connect to "BoilBuddy-Setup"** 
+   - No password needed for this setup network
+   - Don't worry if it says "No Internet" - this is normal
+
+### Step 4: Open the Configuration Page
+
+Depending on your device, you may automatically jump to the setup page. If not:
+
+1. **Open your web browser** (Chrome, Safari, Firefox, etc.)
+2. **Type this address**: `192.168.4.1`
+3. **Press Enter** - you should see a setup page with the title "BoilBuddy Setup"
+
+If the page doesn't load:
+- Make sure you're still connected to "BoilBuddy-Setup" WiFi
+- Try `http://192.168.4.1` instead
+- Wait a bit longer and try again
+
+### Step 5: Configure Your Settings
+You'll see a form with several fields. Fill them out:
+
+#### Required Settings:
+1. **WiFi SSID**: Select your home WiFi network from the dropdown, or type the exact name if you don't see it
+2. **WiFi Password**: Type your home WiFi password (be careful with capitals and special characters)
+3. **Boiling Temp (°C)**: Leave as "100.0" unless you live at high altitude (then use 98 or 99)
+
+#### Optional Settings (you can leave these blank if you want):
+4. **Pushover User Key**: If you set up Pushover, paste your User Key here
+5. **Pushover API Key**: If you set up Pushover, paste your API Token here  
+6. **VoiceMonkey Group Name**: If you set up VoiceMonkey, type the exact name of your "monkey"
+7. **VoiceMonkey API Key**: If you set up VoiceMonkey, paste your API Key here
+
+### Step 6: Save and Connect
+1. **Double-check your WiFi password** - this is the most common mistake!
+2. **Click "Save"** at the bottom of the form
+3. **Wait patiently** - BoilBuddy will try to connect to your WiFi (this takes 30-60 seconds)
+
+#### If It Works:
+- BoilBuddy will start showing the current temperature
+- If you set up notifications, you should get a test message on each communication method you set up.
+
+#### If It Doesn't Work:
+- The screen will show "WiFi Failed" or similar
+- Go back to Step 2 and try again
+- Common fixes:
+  - Check your WiFi password for typos
+  - Make sure your WiFi is 2.4GHz (not 5GHz only)
+  - Move BoilBuddy closer to your router
+- email me (my email is written on the device).
+
+## Using Your BoilBuddy
+
+### Daily Use
+1. **Fill a pot with water** and place it on the stove
+2. **Put the temperature sensor** (the waterproof probe) into the water
+3. **Turn on your BoilBuddy** if it's not already on
+4. **Turn on your stove** and start heating the water
+5. **Watch the screen** - it shows the current temperature in real-time
+6. **When water reaches boiling** (usually around 100°C):
+   - The screen will show "BOILING!"
+   - You'll get a phone notification (if you set up Pushover)
+   - Alexa will announce it (if you set up VoiceMonkey)
+
+### Changing Settings Later
+If you need to change your WiFi password or other settings:
+
+1. **Press and hold the button** for 2 seconds while BoilBuddy is running
+2. **Follow Steps 3-6 above** to reconfigure
+3. Your old settings will be replaced with the new ones
+
+## Troubleshooting Common Problems
+
+### "The screen is blank"
+- Check that BoilBuddy is plugged in
+- Try a different USB cable or power adapter
+- The screen might be very dim - look closely in good lighting
+
+### "No temperature showing" or "Error: Could not read temperature"
+- Make sure the temperature sensor (probe) is plugged in correctly
+- The probe might be damaged - try gently moving the wires
+- Check that the probe is actually touching the water
+
+### "Can't connect to BoilBuddy-Setup WiFi"
+- Make sure you pressed the button to enter setup mode
+- Wait a full minute after pressing the button
+- Move your phone/computer closer to BoilBuddy
+- Try turning your phone's WiFi off and on again
+
+### "Configuration page won't load"
+- Make sure you're connected to "BoilBuddy-Setup" (not your regular WiFi)
+- Try typing the address again: `192.168.4.1`
+- Try adding `http://` at the beginning: `http://192.168.4.1`
+- Close your browser and try again
+
+### "WiFi connection fails"
+- Double-check your WiFi password (most common issue!)
+- Make sure your WiFi network is 2.4GHz (BoilBuddy can't use 5GHz)
+- Move BoilBuddy closer to your router
+- Try restarting your router
+- Some routers block new devices - check your router settings
+
+### "Not getting phone notifications"
+- Make sure you entered both Pushover keys correctly
+- Check that your phone has the Pushover app installed and logged in
+- Test by sending yourself a message from the Pushover website
+- Make sure BoilBuddy is connected to the internet (not just your WiFi)
+
+### "Alexa not announcing"
+- Make sure you entered the VoiceMonkey group name exactly as you created it
+- Check that your Alexa account is linked to VoiceMonkey
+- Try triggering a test announcement from the VoiceMonkey website
+- Make sure your Alexa device is online and working
+
+## Need More Help?
+If you're still having trouble, write down exactly what's happening and what the screen shows. The more details you can provide, the easier it is to help!
+
+
+
+# Dev Notes
 
 ## Features
 

@@ -1,11 +1,6 @@
 //todo: 
 // - dipswitches to control if pushover/alexa is used?
-// - it seems like if the temp probes aren't connected, wifi keeps resetting??? does that make sense?
-// need to fix the button so it doesn't read as pressed on boot. This could be done by having the initializer just
-//do digital read to set the initial state, or it could have us fix the initial state, or we could have a flag to ignore the first read?
-//not sure that last one works actually.
-//could just write the debounce logic myself and have it work the way I've had it in the past.
-// make the screen update to reflect when we *are* in the setup state. 
+//todo; more useful menu displays, e.g. for various errors.
 
 
 #include <Arduino.h>
@@ -122,6 +117,7 @@ void wifiNotConnectedDisplay();
 void pushoverFailureDisplay();
 void alexaFailureDisplay();
 void launchPortalDisplay();
+void noProbeDisplay();
 
 void setup() {
   
@@ -206,6 +202,7 @@ void setup() {
     Serial.println("- VDD to 3.3V");
     Serial.println("- GND to GND");
     Serial.println("- 4.7kΩ resistor between data and 3.3V");
+    noProbeDisplay();
   } else {
     sensors.setResolution(TEMPERATURE_PRECISION);
     Serial.println("DS18B20 temperature sensor initialized successfully");
